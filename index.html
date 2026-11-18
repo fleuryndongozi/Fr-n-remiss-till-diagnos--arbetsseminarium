@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vad saknas i remissen?</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+<style>
+/* Layout: a clinical referral form on the left, the hidden findings on the right; tabs walk the seminar case by case. */
+:root {
+  --bg: #e9eef0;
+  --surface: #ffffff;
+  --surface-2: #f3f6f7;
+  --ink: #15212a;
+  --muted: #55636e;
+  --line: #cdd6dc;
+  --accent: #0e6676;
+  --accent-ink: #ffffff;
+  --redact: #1d2a33;
+  --redact-stripe: #2b3a45;
+  --d-anat: #b3452f;
+  --d-fys: #1d6e60;
+  --d-sjd: #6a4b9a;
+  --d-stral: #8f6210;
+  --d-met: #275e93;
+  --d-omv: #a13c69;
+  --chip-ink: #ffffff;
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e151a; --surface: #16212a; --surface-2: #1c2933; --ink: #e5ecef; --muted: #9aa9b3; --line: #2b3a46;
+  --accent: #4fb2c2; --accent-ink: #0b1418; --redact: #05090c; --redact-stripe: #1a252d;
+  --d-anat: #e07a63; --d-fys: #4fb39f; --d-sjd: #a68ad6; --d-stral: #d9a744; --d-met: #6ea3d8; --d-omv: #d97aa4; --chip-ink: #0b1418;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0e151a; --surface: #16212a; --surface-2: #1c2933; --ink: #e5ecef; --muted: #9aa9b3; --line: #2b3a46;
+  --accent: #4fb2c2; --accent-ink: #0b1418; --redact: #05090c; --redact-stripe: #1a252d;
+  --d-anat: #e07a63; --d-fys: #4fb39f; --d-sjd: #a68ad6; --d-stral: #d9a744; --d-met: #6ea3d8; --d-omv: #d97aa4; --chip-ink: #0b1418;
+  color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); font-size: 17px; line-height: 1.5; }
+@media (min-width: 1400px) { body { font-size: 19px } }
+button { font: inherit; color: inherit; cursor: pointer }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px }
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.2 }
+
+.wrap { max-width: 1320px; margin: 0 auto; padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+header.top { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+.brand { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.eyebrow { font-family: var(--font-mono); font-size: 0.72em; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted) }
+.brand h1 { font-size: 1.6em; font-weight: 700 }
+
+.timer { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px 6px 14px }
+.timer output { font-family: var(--font-mono); font-size: 1.5em; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 4ch; text-align: right }
+.timer output.done { color: var(--d-anat) }
+.timer select { font: inherit; font-size: 0.85em; background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px }
+.btn { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-size: 0.88em; font-weight: 500 }
+.btn:hover { border-color: var(--accent) }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent) }
+
+nav.tabs { display: flex; gap: 6px; margin-top: 20px; overflow-x: auto; padding-bottom: 4px; border-bottom: 2px solid var(--line) }
+nav.tabs button { flex: none; background: transparent; border: none; border-bottom: 3px solid transparent; margin-bottom: -2px; padding: 10px 14px; font-weight: 500; color: var(--muted); white-space: nowrap; display: flex; align-items: center; gap: 8px }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600 }
+nav.tabs .count { font-family: var(--font-mono); font-size: 0.75em; background: var(--surface); border: 1px solid var(--line); border-radius: 99px; padding: 0 7px }
+nav.tabs .count.full { background: var(--accent); color: var(--accent-ink); border-color: var(--accent) }
+
+main { margin-top: 24px }
+
+/* Case layout */
+.case-head { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; margin-bottom: 20px }
+.case-head h2 { font-size: 1.9em; font-weight: 700 }
+.domains { display: flex; flex-wrap: wrap; gap: 6px }
+.dchip { font-size: 0.75em; font-weight: 600; letter-spacing: 0.02em; padding: 3px 10px; border-radius: 99px; border: 1.5px solid var(--line); color: var(--muted); background: transparent; transition: background .25s, color .25s, border-color .25s }
+.dchip.on { color: var(--chip-ink); }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 24px; align-items: start }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr } }
+
+/* Remiss form */
+.remiss { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 1px 0 var(--line), 0 10px 30px -18px rgba(0,0,0,.35); min-width: 0 }
+.remiss-top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 14px 20px; border-bottom: 2px solid var(--ink) }
+.remiss-top .t { font-family: var(--font-mono); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase }
+.remiss-top .p { font-family: var(--font-mono); font-size: 0.8em; color: var(--muted) }
+.field { display: grid; grid-template-columns: 11em minmax(0, 1fr); gap: 4px 16px; padding: 12px 20px; border-bottom: 1px solid var(--line) }
+@media (max-width: 560px) { .field { grid-template-columns: 1fr } }
+.field .k { font-family: var(--font-mono); font-size: 0.74em; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding-top: 0.25em }
+.field .v { font-size: 1.08em }
+.added-title { padding: 12px 20px 4px; font-family: var(--font-mono); font-size: 0.74em; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); font-weight: 600 }
+.added-empty { padding: 4px 20px 16px; color: var(--muted); font-style: italic; font-size: 0.92em }
+.added { margin: 4px 20px; padding: 8px 12px; border-left: 4px solid var(--accent); background: var(--surface-2); animation: drop .35s ease-out }
+.added b { font-weight: 600 }
+.added:last-child { margin-bottom: 16px }
+@keyframes drop { from { transform: translateY(-6px); opacity: .4 } to { transform: none; opacity: 1 } }
+
+/* Gap cards */
+.gaps { display: flex; flex-direction: column; gap: 10px; min-width: 0 }
+.gaps-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap }
+.gaps-head h3 { font-size: 1.15em }
+.progress { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted) }
+.progress b { color: var(--ink) }
+.gap { border-radius: 8px; border: 1px solid var(--line); background: var(--surface); overflow: hidden }
+.gap.closed .gap-main { background: repeating-linear-gradient(135deg, var(--redact) 0 14px, var(--redact-stripe) 14px 28px); color: #e8eef1 }
+.gap-main { width: 100%; display: flex; align-items: center; gap: 14px; text-align: left; border: none; background: transparent; padding: 14px 16px }
+.gap-num { font-family: var(--font-mono); font-weight: 600; flex: none; width: 2.1em; height: 2.1em; border-radius: 50%; display: grid; place-items: center; border: 2px solid currentColor; font-size: 0.9em }
+.gap.closed .gap-label { font-family: var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.85em }
+.gap-label { font-weight: 600; flex: 1; min-width: 0 }
+.gap.closed .reveal-cue { font-size: 0.78em; opacity: .8; font-family: var(--font-mono) }
+.gap-hint-row { display: flex; gap: 10px; align-items: flex-start; padding: 0 16px 12px; background: var(--surface) }
+.gap.closed .gap-hint-row { padding-top: 10px }
+.hint { font-style: italic; color: var(--muted) }
+.linkbtn { background: none; border: none; padding: 0; color: var(--accent); font-weight: 600; font-size: 0.88em; text-decoration: underline; text-underline-offset: 3px; flex: none }
+.gap-body { padding: 0 16px 14px 66px; display: flex; flex-direction: column; gap: 8px }
+@media (max-width: 560px) { .gap-body { padding-left: 16px } }
+.gap-body .info { font-size: 1.05em }
+.gap-body .why { font-size: 0.93em; color: var(--muted) }
+.gap-body .why b { color: var(--ink); font-weight: 600 }
+.minichips { display: flex; gap: 6px; flex-wrap: wrap }
+.minichips span { font-size: 0.72em; font-weight: 600; color: var(--chip-ink); padding: 2px 9px; border-radius: 99px }
+.gap.open .gap-main { cursor: default }
+.gap.open { border-left: 5px solid var(--accent) }
+
+.tools { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px }
+.extra { margin-top: 6px; background: var(--surface); border: 1px dashed var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px }
+.extra label { font-size: 0.88em; font-weight: 600 }
+.extra form { display: flex; gap: 8px }
+.extra input { flex: 1; min-width: 0; font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--ink) }
+.sugg { display: flex; flex-wrap: wrap; gap: 6px }
+.sugg span { background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font-size: 0.88em; display: inline-flex; gap: 6px; align-items: center }
+.sugg button { background: none; border: none; color: var(--muted); padding: 0 2px }
+
+/* Next step */
+.next { margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px }
+@media (max-width: 900px) { .next { grid-template-columns: 1fr } }
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px }
+.step.dark { background: var(--ink); color: var(--bg); border-color: var(--ink) }
+.step .eyebrow { color: inherit; opacity: .75 }
+.step p { margin: 0; font-size: 1.12em }
+.step .cover { color: inherit; opacity: .7; font-style: italic; font-size: 0.95em }
+
+/* Intro + summary */
+.prose { max-width: 70ch; display: flex; flex-direction: column; gap: 14px }
+.prose p { margin: 0 }
+.intro-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; align-items: start }
+@media (max-width: 900px) { .intro-grid { grid-template-columns: 1fr } }
+.phases { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line) }
+.phases li { display: grid; grid-template-columns: 3em minmax(0, 1fr) auto; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: baseline }
+.phases .n { font-family: var(--font-mono); font-weight: 600; color: var(--accent) }
+.phases .tm { font-family: var(--font-mono); font-size: 0.8em; color: var(--muted); white-space: nowrap }
+.phases b { display: block }
+.phases span.d { color: var(--muted); font-size: 0.93em }
+.legend { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px }
+.legend .row { display: flex; gap: 12px; align-items: baseline }
+.legend .sw { flex: none; width: 12px; height: 12px; border-radius: 3px; transform: translateY(1px) }
+.legend .row span:last-child { color: var(--muted); font-size: 0.93em }
+.legend .row b { color: var(--ink); font-weight: 600 }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px }
+table.sum { border-collapse: collapse; width: 100%; min-width: 760px }
+table.sum th, table.sum td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: center }
+table.sum th:first-child, table.sum td:first-child { text-align: left }
+table.sum th { font-family: var(--font-mono); font-size: 0.74em; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500 }
+.dot { display: inline-block; width: 14px; height: 14px; border-radius: 50% }
+.dot.off { border: 1.5px solid var(--line) }
+.quote { font-size: 1.5em; font-weight: 500; line-height: 1.35; max-width: 34ch; text-wrap: balance; margin-top: 28px; border-left: 5px solid var(--accent); padding-left: 20px }
+.foot { margin-top: 40px; color: var(--muted); font-size: 0.85em }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow">Arbetsseminarium · Termin 3</span>
+      <h1>Från remiss till diagnos – vad saknas?</h1>
+    </div>
+    <div class="timer" aria-label="Timer för gruppdiskussion">
+      <output id="clock" aria-live="off">5:00</output>
+      <select id="mins" aria-label="Minuter">
+        <option value="2">2 min</option><option value="4">4 min</option>
+        <option value="5" selected>5 min</option><option value="8">8 min</option><option value="10">10 min</option>
+      </select>
+      <button class="btn primary" id="tgo">Starta</button>
+      <button class="btn" id="treset">Nollställ</button>
+    </div>
+  </header>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Seminariets delar"></nav>
+  <main id="main"></main>
+  <p class="foot">Alla fall är fiktiva. Gränsvärden och rutiner följer lokala riktlinjer.</p>
+</div>
+
+<script>
+const D = {
+  anat: { name: 'Anatomi', v: '--d-anat' },
+  fys: { name: 'Fysiologi', v: '--d-fys' },
+  sjd: { name: 'Sjukdomslära', v: '--d-sjd' },
+  stral: { name: 'Strålningsfysik', v: '--d-stral' },
+  met: { name: 'Metodik', v: '--d-met' },
+  omv: { name: 'Omvårdnad', v: '--d-omv' }
+};
+const DK = Object.keys(D);
+
+const CASES = [
+{ id: 'f1', tab: 'Fall 1', title: 'Andnöd hos en ung kvinna', prio: 'Akut',
+  fields: [['Undersökning', 'DT lungartärer'], ['Remittent', 'Akutmottagningen'],
+    ['Anamnes', 'Kvinna, 29 år. Akut andnöd och bröstsmärta sedan i morse. Takykard, förhöjt D-dimer.'], ['Frågeställning', 'Lungemboli?']],
+  gaps: [
+    { label: 'Graviditet', d: ['stral', 'omv'], hint: 'Hon är en kvinna i fertil ålder. Vad måste du alltid ta reda på före DT av thorax?',
+      info: 'Senaste mens för sex veckor sedan. Graviditetstest är inte taget.',
+      why: 'Berättigande och optimering kräver att graviditet är utredd. Ställ frågan diskret och förklara varför du frågar.' },
+    { label: 'Njurfunktion', d: ['fys', 'met'], hint: 'Jodkontrast ska ges. Vilket organ ska ta hand om den?',
+      info: 'Kreatinin 64 µmol/L, eGFR över 90.', why: 'Njurfunktionen avgör om kontrast kan ges och i vilken mängd.' },
+    { label: 'Tidigare kontrast och allergier', d: ['met', 'omv'], hint: 'Har hon fått kontrast förut?',
+      info: 'Ingen tidigare kontrastundersökning. Inga kända allergier.', why: 'En tidigare reaktion ändrar förberedelsen och beredskapen i rummet.' },
+    { label: 'Venös infart', d: ['met', 'anat'], hint: 'Kontrasten ska in snabbt. Vad måste vara på plats i armen?',
+      info: 'Grön PVK (18G) i höger armbåge.', why: 'Bolusinjektionen kräver en tillräckligt grov infart med kort väg till hjärtat.' },
+    { label: 'Andning och syresättning', d: ['fys', 'omv'], hint: 'Hur väl kan hon samarbeta kring andningen?',
+      info: 'Andningsfrekvens 26/min, saturation 92 % med syrgas. Klarar att hålla andan några sekunder.',
+      why: 'Anpassa andningsinstruktionen och undvik Valsalva. En andfådd patient behöver lugn och tydlighet.' },
+    { label: 'Riskfaktorer', d: ['sjd'], hint: 'Vad i hennes historia gör lungemboli sannolik?',
+      info: 'Använder kombinerade p-piller. Flög hem från Thailand för fyra dagar sedan.',
+      why: 'Östrogen och långvarigt stillasittande ökar risken för venös trombos.' }
+  ],
+  now: 'Graviditetstestet är positivt. Radiologen bedömer att undersökningen ändå är berättigad. Hur optimerar du undersökningen, och hur ser du till att patienten känner sig trygg och delaktig?',
+  whatif: 'Vad hade hänt om ingen hade frågat om graviditet? Eller om skanningen startat för sent och kontrastfyllnaden i lungartärerna blivit för dålig?' },
+
+{ id: 'f2', tab: 'Fall 2', title: 'Fallet i hemmet', prio: 'Akut',
+  fields: [['Undersökning', 'Höft och bäcken'], ['Remittent', 'Akutmottagningen'],
+    ['Anamnes', 'Man, 84 år. Föll i hemmet i natt. Smärta i höften, kan inte belasta.'], ['Frågeställning', 'Fraktur?']],
+  gaps: [
+    { label: 'Sida', d: ['anat', 'met'], hint: 'Läs remissen igen. Vilken höft gäller det?',
+      info: 'Vänster.', why: 'Sidangivelse är en grundläggande patientsäkerhetsfråga. Kontrollera alltid mot patient och remittent.' },
+    { label: 'Kliniska fynd', d: ['sjd', 'met'], hint: 'Vad såg läkaren när benet undersöktes?',
+      info: 'Vänster ben förkortat och utåtroterat.', why: 'Klassiskt tecken på collumfraktur. Benet ska aldrig tvingas till inåtrotation.' },
+    { label: 'Smärtlindring', d: ['omv'], hint: 'Hur ska han klara förflyttningen till britsen?',
+      info: 'Fick morfin på akuten för 20 minuter sedan.', why: 'Smärtlindring före förflyttning är god omvårdnad och ger dessutom en stillaliggande patient och bättre bilder.' },
+    { label: 'Tidigare operationer', d: ['anat', 'stral'], hint: 'Kan det finnas metall i bilden?',
+      info: 'Höger höftprotes sedan 2019.', why: 'Påverkar exponering och projektionsval, och vad som går att jämföra i bilden.' },
+    { label: 'Kognition och hörsel', d: ['omv'], hint: 'Kommer han att uppfatta dina instruktioner?',
+      info: 'Lätt kognitiv svikt. Hörapparaten ligger kvar hemma.', why: 'Tala lugnt och nära, ansikte mot ansikte. Kontrollera identiteten extra noga.' },
+    { label: 'Tid på golvet', d: ['fys', 'omv'], hint: 'När föll han – och när hittades han?',
+      info: 'Låg på golvet i cirka sex timmar innan hemtjänsten kom.', why: 'Risk för nedkylning, trycksår och muskelskada. Hantera huden varsamt och håll patienten varm.' }
+  ],
+  now: 'Slätröntgen visar ingen säker fraktur, men patienten har fortfarande mycket ont och kan inte belasta. Vad händer nu?',
+  whatif: 'Vad hade hänt om du följt protokollet mekaniskt och roterat benet inåt? Eller röntgat fel sida?' },
+
+{ id: 'f3', tab: 'Fall 3', title: 'Strokelarm', prio: 'Prio 1 · strokelarm',
+  fields: [['Undersökning', 'DT hjärna och DT angiografi'], ['Remittent', 'Akutmottagningen'],
+    ['Anamnes', 'Kvinna, 67 år. Akut insättande svaghet och talsvårigheter.'], ['Frågeställning', 'Blödning? Ocklusion? Trombektomikandidat?']],
+  gaps: [
+    { label: 'Symtomdebut', d: ['fys', 'sjd'], hint: 'Vad avgör vilken behandling som fortfarande är möjlig?',
+      info: 'Sågs senast frisk kl. 07.40. Strokelarmet kom kl. 08.30.', why: 'Tidsfönstret styr trombolys och trombektomi. Penumbran krymper för varje minut.' },
+    { label: 'Vilken sida', d: ['anat'], hint: 'Vilken kroppshalva är svag?',
+      info: 'Högersidig svaghet i arm och ben. Afasi.', why: 'Högersidiga symtom med afasi pekar mot vänster hemisfär och a. cerebri media.' },
+    { label: 'Blodförtunnande', d: ['sjd'], hint: 'Vad kan förvärra en blödning eller stoppa trombolys?',
+      info: 'Behandlas med apixaban för förmaksflimmer.', why: 'Antikoagulantia påverkar beslutet om trombolys. Förmaksflimmer talar för en embolisk ocklusion.' },
+    { label: 'Njurfunktion', d: ['fys', 'met'], hint: 'Kontrast ska ges. Finns provsvar?',
+      info: 'Inte känd. Proverna är inte klara.', why: 'Diskutera: vad säger era lokala strokerutiner om kontrast innan provsvar finns? Väntan kostar hjärnvävnad.' },
+    { label: 'Vikt och infart', d: ['met'], hint: 'Vad behöver du för kontrastinjektionen?',
+      info: 'Cirka 70 kg. Grön PVK i höger armbåge.', why: 'Kontrastmängd anpassas efter vikt, och angiografin kräver hög flödeshastighet.' },
+    { label: 'Kommunikation', d: ['omv'], hint: 'Hur når du fram till en patient med afasi?',
+      info: 'Förstår enkla uppmaningar men kan inte svara med ord.', why: 'Korta meningar, visa med händerna, tala direkt till patienten. Hon förstår mer än hon kan uttrycka.' }
+  ],
+  now: 'DT hjärna visar ingen blödning. Angiografin visar en ocklusion i vänster a. cerebri media. Vad är röntgensjuksköterskans roll de närmaste minuterna?',
+  whatif: 'Vad hade hänt om undersökningen tagit 15 minuter längre för att ingen visste när symtomen började?' },
+
+{ id: 'f4', tab: 'Fall 4', title: 'Viktnedgång och buksmärta', prio: 'Normal',
+  fields: [['Undersökning', 'DT buk med intravenös kontrast'], ['Remittent', 'Kirurgmottagningen'],
+    ['Anamnes', 'Man, 72 år. Oavsiktlig viktnedgång och buksmärtor i två månader.'], ['Frågeställning', 'Malignitet?']],
+  gaps: [
+    { label: 'Njurfunktion', d: ['fys', 'met'], hint: 'Vad behöver du veta innan jodkontrast ges?',
+      info: 'eGFR 32, mätt för en vecka sedan.', why: 'Nedsatt njurfunktion kräver anpassad kontrastmängd enligt lokala riktlinjer.' },
+    { label: 'Diabetes och läkemedel', d: ['sjd', 'fys'], hint: 'Finns sjukdomar eller läkemedel som påverkas av kontrasten?',
+      info: 'Diabetes typ 2, behandlas med metformin.', why: 'Metformin och nedsatt njurfunktion innebär risk för laktacidos. Följ lokal rutin om utsättning.' },
+    { label: 'Tidigare kontrastreaktion', d: ['met', 'omv'], hint: 'Har han gjort en kontrastundersökning förut?',
+      info: 'Fick nässelutslag efter DT med kontrast för tre år sedan.', why: 'Ändrar förberedelsen: radiologbedömning, eventuellt annat kontrastmedel och god beredskap.' },
+    { label: 'Vikt', d: ['met'], hint: 'Hur doserar du kontrasten?',
+      info: '64 kg, har gått ner 9 kg.', why: 'Kontrastdosen anpassas efter vikt och njurfunktion.' },
+    { label: 'Precisering av frågan', d: ['sjd', 'anat'], hint: 'Var i buken misstänker man något?',
+      info: 'Kirurgen misstänker pankreastumör.', why: 'Kan kräva en extra kontrastfas utöver portovenös fas enligt lokalt protokoll.' },
+    { label: 'Patientens oro', d: ['omv'], hint: 'Vad vet patienten själv om varför han är här?',
+      info: 'Har förstått att man letar efter cancer. Mycket orolig och har sovit dåligt.', why: 'Ett lugnt bemötande och tydlig information om vad som händer och varför är en del av undersökningen.' }
+  ],
+  now: 'Radiologen beslutar att undersökningen ska genomföras. Hur förbereder du patienten, kontrasten och rummet?',
+  whatif: 'Vad hade hänt om ingen hade kontrollerat njurfunktionen, metforminbehandlingen eller den tidigare reaktionen?' },
+
+{ id: 'f5', tab: 'Fall 5', title: 'Magsmärta hos ett barn', prio: 'Akut',
+  fields: [['Undersökning', 'DT buk'], ['Remittent', 'Barnakuten'],
+    ['Anamnes', 'Pojke, 9 år. Smärta i höger fossa sedan i går, feber, förhöjt CRP.'], ['Frågeställning', 'Appendicit?']],
+  gaps: [
+    { label: 'Tidigare bilddiagnostik', d: ['stral', 'met'], hint: 'Har man provat en metod utan joniserande strålning?',
+      info: 'Inget ultraljud är gjort.', why: 'Ultraljud är ofta förstahandsval hos barn. Berättigandet bör diskuteras med remittent och radiolog.' },
+    { label: 'Vikt och längd', d: ['stral', 'met'], hint: 'Vad behöver du för att anpassa protokollet?',
+      info: '32 kg, 138 cm.', why: 'Barnprotokoll och dosmodulering bygger på storlek. Korrekt centrering påverkar dosen.' },
+    { label: 'Medföljande förälder', d: ['omv', 'stral'], hint: 'Vem är med barnet?',
+      info: 'Pappa är med.', why: 'Föräldern ger trygghet och ska få information. Tänk på strålskydd för den som stannar i rummet.' },
+    { label: 'Barnets förmåga att samarbeta', d: ['omv'], hint: 'Kommer han att kunna ligga still?',
+      info: 'Har ont och är rädd. Har aldrig varit på sjukhus.', why: 'Förklara på barnets nivå, ge tid och använd distraktion. Ett tryggt barn ger bättre bilder och färre omtag.' },
+    { label: 'Klinisk bedömning', d: ['anat', 'sjd'], hint: 'Hur säker är kirurgen?',
+      info: 'Oklar bild: ömhet i höger fossa men atypiskt status.', why: 'Appendix läge varierar, till exempel retrocekalt, vilket kan ge atypiska symtom och fynd.' },
+    { label: 'Infart och allergier', d: ['met', 'omv'], hint: 'Ska kontrast ges, och är allt förberett?',
+      info: 'Inga kända allergier. Ingen PVK ännu.', why: 'Planera så att barnet slipper onödiga stick. Bedövningskräm tar tid att verka.' }
+  ],
+  now: 'Efter samtal med radiologen görs först ett ultraljud. Det blir inte konklusivt, och DT bedöms nu berättigad. Hur genomför du den?',
+  whatif: 'Vad hade hänt om ingen hade ifrågasatt remissen?' },
+
+{ id: 'bonus', tab: 'Bonus · MR', title: '”Något i hjärtat”', prio: 'Normal',
+  fields: [['Undersökning', 'MR hjärna'], ['Remittent', 'Neurologmottagningen'],
+    ['Anamnes', 'Man, 75 år. Yrsel och ostadighet sedan en månad.'], ['Frågeställning', 'Infarkt? Expansivitet?']],
+  gaps: [
+    { label: 'Implantat', d: ['met', 'fys'], hint: 'Vad måste alltid vara känt före en MR?',
+      info: 'Anhörig berättar att han har ”något i hjärtat”.', why: 'Magnetfält och radiofrekvent energi påverkar implantat. Ett okänt implantat betyder stopp.' },
+    { label: 'Implantatets typ och villkor', d: ['met'], hint: 'Hur tar du reda på exakt vad det är?',
+      info: 'Pacemaker sedan 2017 enligt journalen. Implantatkortet ligger hemma.', why: 'Modell och MR-villkor måste verifieras och rätt personer kontaktas enligt lokal rutin.' },
+    { label: 'MR-säkerhetsformulär', d: ['met', 'omv'], hint: 'Vilket dokument ska alltid fyllas i?',
+      info: 'Formuläret är inte ifyllt.', why: 'Formuläret är en säkerhetsbarriär och fylls i tillsammans med patienten.' },
+    { label: 'Trånga utrymmen', d: ['omv'], hint: 'Hur känns det att ligga i en smal tunnel i 30 minuter?',
+      info: 'Får panikkänslor i trånga utrymmen.', why: 'Information, tid och kontakt under undersökningen. Ibland behövs premedicinering.' },
+    { label: 'Njurfunktion', d: ['fys'], hint: 'Ska gadolinium ges?',
+      info: 'eGFR 58.', why: 'Gadoliniumkontrast och njurfunktion följer egna riktlinjer.' }
+  ],
+  now: 'Implantatet visar sig vara en MR-villkorad pacemaker. Vad krävs för att undersökningen ska kunna genomföras säkert?',
+  whatif: 'Vad hade hänt om patienten kommit in i magnetrummet utan kontroll?' }
+];
+
+/* ---------- state ---------- */
+const KEY = 'remiss-seminarium-v1';
+let S = { tab: 'intro', open: {}, hint: {}, next: {}, sugg: {} };
+try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(S, JSON.parse(raw)); } catch (e) {}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+const arr = (o, k) => (o[k] = o[k] || []);
+
+function litDomains(c) {
+  const set = new Set();
+  arr(S.open, c.id).forEach(i => c.gaps[i].d.forEach(x => set.add(x)));
+  return set;
+}
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+/* ---------- tabs ---------- */
+const TABS = [{ id: 'intro', label: 'Upplägg' }, ...CASES.map(c => ({ id: c.id, label: c.tab, c })), { id: 'sum', label: 'Sammanfattning' }];
+function renderTabs() {
+  document.getElementById('tabs').innerHTML = TABS.map(t => {
+    let count = '';
+    if (t.c) { const n = arr(S.open, t.c.id).length, m = t.c.gaps.length; count = `<span class="count${n === m ? ' full' : ''}">${n}/${m}</span>`; }
+    return `<button role="tab" aria-selected="${S.tab === t.id}" data-tab="${t.id}">${esc(t.label)}${count}</button>`;
+  }).join('');
+}
+
+/* ---------- views ---------- */
+function intro() {
+  return `
+  <div class="intro-grid">
+    <div class="prose">
+      <h2 style="font-size:1.9em">Hitta det som saknas</h2>
+      <p>Varje remiss i dag är ofullständig. Er uppgift i gruppen är att lista ut vilka uppgifter ni behöver innan undersökningen kan genomföras säkert, korrekt och med god omvårdnad.</p>
+      <p>När en grupp nämner en saknad uppgift klickar läraren fram den. Uppgiften läggs då till i remissen, och kunskapsområdet den bygger på tänds. Kör det fast finns en ledtråd till varje uppgift.</p>
+      <ol class="phases">
+        <li><span class="n">01</span><span><b>Läs remissen</b><span class="d">Högt, utan kommentarer.</span></span><span class="tm">1 min</span></li>
+        <li><span class="n">02</span><span><b>Vad saknas?</b><span class="d">Grupperna listar uppgifter de behöver. Använd timern.</span></span><span class="tm">4–5 min</span></li>
+        <li><span class="n">03</span><span><b>Avslöja stegvis</b><span class="d">Grupperna turas om att nämna en uppgift. Rätt svar klickas fram, med motivering.</span></span><span class="tm">4 min</span></li>
+        <li><span class="n">04</span><span><b>Nästa steg</b><span class="d">Fallet utvecklas. Vad gör ni nu?</span></span><span class="tm">2 min</span></li>
+        <li><span class="n">05</span><span><b>Vad hade hänt om…?</b><span class="d">Konsekvensen när kunskapen saknas.</span></span><span class="tm">1 min</span></li>
+      </ol>
+      <p style="color:var(--muted)">Räkna med 12–15 minuter per fall och 3–4 studenter per grupp. Studenterna kan också komma på uppgifter som inte finns med. Skriv in dem under fallet, de är ofta lika viktiga.</p>
+    </div>
+    <aside class="legend" aria-label="Kunskapsområden">
+      <span class="eyebrow">Sex kunskapsområden</span>
+      ${[['anat', 'Vad ska synas i bilden, och var?'], ['fys', 'Hur fungerar kroppen, och hur påverkar det undersökningen?'], ['sjd', 'Vad misstänks, och vad betyder det för metoden?'], ['stral', 'Rätt bildkvalitet till lägsta rimliga dos.'], ['met', 'Säkert och korrekt utförande för just den här patienten.'], ['omv', 'Etik, kommunikation, hygien och patientcentrerad vård.']]
+        .map(([k, t]) => `<div class="row"><span class="sw" style="background:var(${D[k].v})"></span><span><b>${D[k].name}.</b> ${t}</span></div>`).join('')}
+    </aside>
+  </div>`;
+}
+
+function caseView(c) {
+  const open = arr(S.open, c.id), hints = arr(S.hint, c.id), lit = litDomains(c);
+  const showNext = !!S.next[c.id];
+  const fields = c.fields.map(([k, v]) => `<div class="field"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`).join('');
+  const added = open.length
+    ? `<div class="added-title">Kompletterande uppgifter</div>` + open.map(i => { const g = c.gaps[i];
+        return `<div class="added" style="border-left-color:var(${D[g.d[0]].v})"><b>${esc(g.label)}:</b> ${esc(g.info)}</div>`; }).join('')
+    : `<div class="added-title">Kompletterande uppgifter</div><div class="added-empty">Inga ännu. Vad behöver ni veta?</div>`;
+
+  const cards = c.gaps.map((g, i) => {
+    const isOpen = open.includes(i), hinted = hints.includes(i);
+    if (!isOpen) return `
+      <div class="gap closed">
+        <button class="gap-main" data-act="open" data-i="${i}" aria-label="Visa saknad uppgift ${i + 1}">
+          <span class="gap-num">${i + 1}</span><span class="gap-label">Uppgift saknas</span><span class="reveal-cue">Klicka för att visa</span>
+        </button>
+        <div class="gap-hint-row">${hinted ? `<span class="hint">${esc(g.hint)}</span>` : `<button class="linkbtn" data-act="hint" data-i="${i}">Ge en ledtråd</button>`}</div>
+      </div>`;
+    return `
+      <div class="gap open" style="border-left-color:var(${D[g.d[0]].v})">
+        <div class="gap-main"><span class="gap-num" style="color:var(${D[g.d[0]].v})">${i + 1}</span><span class="gap-label">${esc(g.label)}</span>
+          <button class="linkbtn" data-act="close" data-i="${i}" aria-label="Dölj uppgift ${i + 1} igen">Dölj</button></div>
+        <div class="gap-body">
+          <span class="info">${esc(g.info)}</span>
+          <span class="why"><b>Därför spelar det roll.</b> ${esc(g.why)}</span>
+          <span class="minichips">${g.d.map(k => `<span style="background:var(${D[k].v})">${D[k].name}</span>`).join('')}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  const sugg = arr(S.sugg, c.id);
+  return `
+  <div class="case-head">
+    <div><span class="eyebrow">${esc(c.tab)} · Fiktivt fall</span><h2>${esc(c.title)}</h2></div>
+    <div class="domains" aria-label="Kunskapsområden som aktiverats">
+      ${DK.map(k => `<span class="dchip${lit.has(k) ? ' on' : ''}" style="${lit.has(k) ? `background:var(${D[k].v});border-color:var(${D[k].v})` : ''}">${D[k].name}</span>`).join('')}
+    </div>
+  </div>
+  <div class="grid">
+    <article class="remiss" aria-label="Remiss">
+      <div class="remiss-top"><span class="t">Remiss · Röntgen</span><span class="p">${esc(c.prio)}</span></div>
+      ${fields}
+      ${added}
+    </article>
+    <section class="gaps" aria-label="Saknade uppgifter">
+      <div class="gaps-head"><h3>Vad saknas för att kunna utföra undersökningen?</h3>
+        <span class="progress"><b>${open.length}</b> av ${c.gaps.length} hittade</span></div>
+      ${cards}
+      <div class="tools">
+        <button class="btn" data-act="all">Visa alla</button>
+        <button class="btn" data-act="reset">Återställ fallet</button>
+      </div>
+      <div class="extra">
+        <label for="sugg-${c.id}">Studenternas egna förslag</label>
+        <form data-form="${c.id}"><input id="sugg-${c.id}" placeholder="T.ex. id-kontroll, kontaktperson…" autocomplete="off"><button class="btn" type="submit">Lägg till</button></form>
+        ${sugg.length ? `<div class="sugg">${sugg.map((s, j) => `<span>${esc(s)}<button data-act="unsugg" data-i="${j}" aria-label="Ta bort ${esc(s)}">×</button></span>`).join('')}</div>` : ''}
+      </div>
+    </section>
+  </div>
+  <div class="next">
+    <div class="step">
+      <span class="eyebrow">Nästa steg · Vad gör du nu?</span>
+      ${showNext ? `<p>${esc(c.now)}</p>` : `<span class="cover">Visas när remissen är komplett.</span><div><button class="btn primary" data-act="next">Visa nästa steg</button></div>`}
+    </div>
+    <div class="step dark">
+      <span class="eyebrow">Reflektion</span>
+      ${showNext ? `<p>${esc(c.whatif)}</p>` : `<span class="cover">Visas tillsammans med nästa steg.</span>`}
+    </div>
+  </div>`;
+}
+
+function summary() {
+  const rows = CASES.map(c => { const lit = litDomains(c);
+    return `<tr><td>${esc(c.tab)} · ${esc(c.title)}</td>${DK.map(k => `<td>${lit.has(k) ? `<span class="dot" style="background:var(${D[k].v})" aria-label="${D[k].name}"></span>` : '<span class="dot off" aria-label="ej aktiverat"></span>'}</td>`).join('')}</tr>`; }).join('');
+  return `
+  <div class="prose" style="margin-bottom:20px">
+    <h2 style="font-size:1.9em">Vilken kunskap behövdes?</h2>
+    <p>Tabellen fylls i utifrån de uppgifter ni hittade under seminariet. Inget fall gick att lösa med ett enda kunskapsområde, och omvårdnaden fanns med i vartenda ett.</p>
+  </div>
+  <div class="tablewrap"><table class="sum">
+    <tr><th>Fall</th>${DK.map(k => `<th>${D[k].name}</th>`).join('')}</tr>${rows}
+  </table></div>
+  <p class="quote">Vilket område känner du dig minst säker på – och hur ska du hålla det levande inför kursen i diagnostik?</p>
+  <div class="tools" style="margin-top:24px"><button class="btn" data-act="resetall">Återställ hela seminariet</button></div>`;
+}
+
+function render() {
+  renderTabs();
+  const m = document.getElementById('main');
+  const c = CASES.find(x => x.id === S.tab);
+  m.innerHTML = S.tab === 'intro' ? intro() : S.tab === 'sum' ? summary() : c ? caseView(c) : intro();
+}
+
+/* ---------- events ---------- */
+document.getElementById('tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]'); if (!b) return;
+  S.tab = b.dataset.tab; save(); render(); window.scrollTo({ top: 0 });
+});
+let armReset = false;
+document.getElementById('main').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const c = CASES.find(x => x.id === S.tab), i = +b.dataset.i, act = b.dataset.act;
+  if (act === 'open') { const o = arr(S.open, c.id); if (!o.includes(i)) o.push(i); }
+  if (act === 'close') { S.open[c.id] = arr(S.open, c.id).filter(x => x !== i); }
+  if (act === 'hint') { const h = arr(S.hint, c.id); if (!h.includes(i)) h.push(i); }
+  if (act === 'all') { const o = arr(S.open, c.id); c.gaps.forEach((_, j) => { if (!o.includes(j)) o.push(j); }); }
+  if (act === 'next') S.next[c.id] = true;
+  if (act === 'reset') { S.open[c.id] = []; S.hint[c.id] = []; S.next[c.id] = false; S.sugg[c.id] = []; }
+  if (act === 'unsugg') arr(S.sugg, c.id).splice(i, 1);
+  if (act === 'resetall') {
+    if (!armReset) { armReset = true; b.textContent = 'Klicka igen för att bekräfta'; setTimeout(() => { armReset = false; if (b.isConnected) b.textContent = 'Återställ hela seminariet'; }, 3000); return; }
+    armReset = false; S = { tab: 'sum', open: {}, hint: {}, next: {}, sugg: {} };
+  }
+  save(); render();
+});
+document.getElementById('main').addEventListener('submit', e => {
+  const f = e.target.closest('[data-form]'); if (!f) return; e.preventDefault();
+  const inp = f.querySelector('input'), v = inp.value.trim(); if (!v) return;
+  arr(S.sugg, f.dataset.form).push(v); save(); render();
+  const again = document.getElementById('sugg-' + f.dataset.form); if (again) again.focus();
+});
+
+/* ---------- timer ---------- */
+const clock = document.getElementById('clock'), mins = document.getElementById('mins'), go = document.getElementById('tgo');
+let left = 300, tick = null;
+const show = () => { const m = Math.floor(left / 60), s = left % 60; clock.textContent = `${m}:${String(s).padStart(2, '0')}`; clock.classList.toggle('done', left === 0); };
+function stop() { clearInterval(tick); tick = null; go.textContent = 'Starta'; }
+go.addEventListener('click', () => {
+  if (tick) return stop();
+  if (left === 0) left = +mins.value * 60;
+  go.textContent = 'Pausa';
+  tick = setInterval(() => { left = Math.max(0, left - 1); show(); if (!left) stop(); }, 1000);
+});
+document.getElementById('treset').addEventListener('click', () => { stop(); left = +mins.value * 60; show(); });
+mins.addEventListener('change', () => { stop(); left = +mins.value * 60; show(); });
+
+show(); render();
+</script>
+</body>
+</html>
